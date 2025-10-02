@@ -1,42 +1,52 @@
+/* Base */
 body, html {
     margin: 0;
     padding: 0;
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
     background-color: #f0f0f0;
     color: #333;
-    overflow: hidden;
+    height: 100vh;
+    box-sizing: border-box;
 }
 
+/* Container: desktop = row, mobile = column */
 .container {
     display: flex;
     flex-direction: row;
     height: 100vh;
     padding: 10px;
+    gap: 10px;
     box-sizing: border-box;
 }
 
+/* Panel */
 .panel {
     background-color: white;
     border-radius: 8px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    margin: 0 5px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.08);
     padding: 15px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+    min-width: 0;
 }
 
+/* Simulation panel */
 #simulation-panel {
     flex: 5;
     padding: 0;
     position: relative;
     overflow: hidden;
+    min-height: 200px;
 }
 
 #simulationCanvas {
     width: 100%;
     height: 100%;
+    display: block;
     background-color: #0a0a23;
+    touch-action: none; /* we'll handle gestures */
+    -webkit-tap-highlight-color: transparent;
 }
 
 #time-display {
@@ -44,86 +54,151 @@ body, html {
     top: 10px;
     left: 10px;
     color: white;
-    background-color: rgba(0,0,0,0.5);
-    padding: 5px 10px;
-    border-radius: 5px;
+    background-color: rgba(0,0,0,0.55);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.9rem;
 }
 
-#controls-panel {
-    flex: 2.5;
-}
+/* Controls and table panels on desktop */
+#controls-panel { flex: 2.5; min-width: 250px; }
+#table-panel { flex: 2.5; min-width: 250px; overflow-y: auto; }
 
-#table-panel {
-    flex: 2.5;
-    overflow-y: auto;
-}
-
+/* Headings */
 h2 {
     text-align: center;
     margin-top: 0;
-    margin-bottom: 20px;
-    font-size: 1.2em;
+    margin-bottom: 12px;
+    font-size: 1.1em;
     border-bottom: 1px solid #eee;
-    padding-bottom: 10px;
+    padding-bottom: 8px;
 }
 
+/* Control group */
 .control-group {
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
+label { font-size: 0.95em; display: block; margin-bottom: 6px; }
 
-label {
-    font-size: 0.9em;
-    display: block;
-    margin-bottom: 5px;
-}
+/* Inputs */
+input[type="range"] { width: 100%; }
 
-input[type="range"] {
-    width: 100%;
-}
-
+/* Buttons */
 button {
-    width: 100%;
     padding: 10px;
     border: none;
     background-color: #5c67f2;
     color: white;
-    border-radius: 5px;
+    border-radius: 6px;
     cursor: pointer;
-    margin-bottom: 10px;
-    font-size: 1em;
-}
-
-button:hover {
-    background-color: #4a54c4;
-}
-
-#massUnitRadio label {
-    display: inline-block;
-    margin-right: 15px;
-}
-
-#starTable {
+    margin-bottom: 8px;
+    font-size: 1rem;
     width: 100%;
-    border-collapse: collapse;
+}
+button:hover { background-color: #4a54c4; }
+
+.button-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 8px;
 }
 
+/* Mass unit inline labels */
+#massUnitRadio label { display: inline-block; margin-right: 12px; font-size: 0.95em; }
+
+/* Table */
+#starTable { width: 100%; border-collapse: collapse; }
 #starTable th, #starTable td {
     border-bottom: 1px solid #eee;
-    padding: 8px 4px;
+    padding: 8px 6px;
     text-align: left;
-    font-size: 0.9em;
+    font-size: 0.95em;
     vertical-align: middle;
 }
+#starTable th { font-weight: 600; }
+#starTable tbody tr.selected { background-color: #e8eaf6; }
+#starTable th:last-child, #starTable td:last-child { text-align: center; }
 
-#starTable th {
-    font-weight: bold;
+/* Mobile toolbar */
+#mobile-toolbar {
+    position: fixed;
+    right: 14px;
+    bottom: 14px;
+    display: none; /* visible on small screens */
+    gap: 8px;
+    z-index: 1200;
+}
+#mobile-toolbar .mobile-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(0,0,0,0.65);
+    color: white;
+    border: none;
+    font-size: 1.2rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 6px 18px rgba(10,10,20,0.25);
 }
 
-#starTable tbody tr.selected {
-    background-color: #e8eaf6;
+/* Details summary styling - make it unobtrusive on desktop */
+.panel-details { border: none; padding: 0; margin: 0; }
+.panel-details .panel-summary { display: none; }
+
+/* --- Responsive: mobile portrait adjustments --- */
+@media (max-width: 900px) {
+    .container {
+        flex-direction: column;
+        padding: env(safe-area-inset-top) 10px calc(env(safe-area-inset-bottom) + 10px) 10px;
+    }
+    #simulation-panel {
+        order: 0;
+        height: 55vh;
+        min-height: 320px;
+    }
+    #controls-panel, #table-panel {
+        order: 1;
+        min-width: 0;
+        padding: 10px;
+    }
+
+    /* Show details summary on mobile so the blocks are collapsible */
+    .panel-details .panel-summary {
+        display: block;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 1rem;
+        padding: 8px 0;
+    }
+    .panel-details .panel-content {
+        padding-top: 6px;
+    }
+    /* Collapse look: summary has small chevron */
+    .panel-details[open] .panel-summary::after {
+        content: "▲";
+        float: right;
+    }
+    .panel-details .panel-summary::after {
+        content: "▼";
+        float: right;
+    }
+
+    /* Make controls more touch-friendly */
+    button { padding: 12px; font-size: 1.05rem; border-radius: 8px; }
+    .button-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* Mobile toolbar visible */
+    #mobile-toolbar { display: flex; flex-direction: column; }
+
+    /* Table -> card-style rows */
+    #starTable thead { display: none; }
+    #starTable tbody tr { display: block; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; padding: 10px; background: #fff; }
+    #starTable tbody tr td { display: block; padding: 4px 2px; }
+    #starTable tbody tr td:last-child { text-align: right; }
 }
 
-#starTable th:last-child,
-#starTable td:last-child {
-    text-align: center;
-}
+/* small polish */
+.panel { transition: box-shadow 0.12s ease; }
+.panel:focus-within { box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
