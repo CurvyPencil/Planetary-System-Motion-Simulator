@@ -1,5 +1,4 @@
-// simulation.js (responsive + touch + DPR fixes)
-// 注意: 元の挙動を尊重しつつ、モバイル向けといくつかのバグ修正を導入しています。
+// simulation.js (fixed preview orbit generation + small robustness fixes)
 
 window.addEventListener('DOMContentLoaded', () => {
     // --- 定数 ---
@@ -28,8 +27,8 @@ window.addEventListener('DOMContentLoaded', () => {
     let activeEffects = [];
     let nextColorIndex = 0;
     let selectedBodyIndex = 0;
-    let scale = 2.5e10; // world units per screen pixel (original convention)
-    let offset = { x: 0, y: 0 }; // screen-space offset (css pixels)
+    let scale = 2.5e10; // world units per screen pixel
+    let offset = { x: 0, y: 0 };
     let lastMousePos = { x: 0, y: 0 };
     let isPanning = false;
     let previewBody = null;
@@ -41,7 +40,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // --- クラス定義 ---
     class Vector { constructor(x = 0, y = 0) { this.x = x; this.y = y; } add(v) { return new Vector(this.x + v.x, this.y + v.y); } sub(v) { return new Vector(this.x - v.x, this.y - v.y); } scale(s) { return new Vector(this.x * s, this.y * s); } norm() { return Math.sqrt(this.x * this.x + this.y * this.y); } }
-    class CelestialBody { constructor(name, mass, pos, vel, color) { this.name = name; this.mass = mass; this.pos = pos; this.vel = vel; this.acc = new Vector(); this.color = color; this.path = [pos]; this.updateRadiusAndSize(); } updateRadiusAndSize() { const baseRadius = R_EARTH * Math.pow(this.mass / M_EARTH, 1 / 3.0); this.radius = baseRadius * simParams.collisionRadiusMultiplier; const logMass = Math.log10(this.mass); const logMoonMass = Math.log10(M_MOON); const logSunMass = Math.log10(M_SUN_ORIG * 10); this.size = MIN_BODY_SIZE + (MAX_BODY_SIZE - MIN_BODY_SIZE) * (logMass - logMoonMass) / (logSunMass - logMoonMass); this.size = Math.max(MIN_BODY_SIZE, this.size); } }
+    class CelestialBody { constructor(name, mass, pos, vel, color) { this.name = name; this.mass = mass; this.pos = pos; this.vel = vel; this.acc = new Vector(); this.color = color; this.path = [pos]; this.updateRadiusAndSize(); } updateRadiusAndSize() { const baseRadius = R_EARTH * Math.pow(this.mass / M_EARTH, 1 / 3.0); this.radius = baseRadius * simParams.collisionRadiusMultiplier; const logMass = Math.log10(Math.max(1, this.mass)); const logMoonMass = Math.log10(M_MOON); const logSunMass = Math.log10(M_SUN_ORIG * 10); this.size = MIN_BODY_SIZE + (MAX_BODY_SIZE - MIN_BODY_SIZE) * (logMass - logMoonMass) / (logSunMass - logMoonMass); this.size = Math.max(MIN_BODY_SIZE, this.size); } }
     class CollisionEffect { constructor(pos, delta_ke) { this.pos = pos; this.age = 0; this.max_age = 30; const log_energy = Math.log10(Math.max(1, delta_ke)); this.initialSize = Math.min(50, 5 + log_energy * 1.5); this.initialAlpha = Math.min(0.8, 0.1 + (log_energy - 25) * 0.05); this.is_active = this.initialAlpha > 0; } update() { this.age++; if (this.age > this.max_age) this.is_active = false; } draw() { if (!this.is_active) return; const currentAlpha = this.initialAlpha * (1 - this.age / this.max_age); const screenPos = worldToScreen(this.pos); ctx.beginPath(); ctx.arc(screenPos.x, screenPos.y, this.initialSize / 2, 0, 2 * Math.PI); ctx.fillStyle = `rgba(255, 255, 255, ${currentAlpha})`; ctx.fill(); } }
 
     // --- 物理計算エンジン ---
@@ -65,7 +64,6 @@ window.addEventListener('DOMContentLoaded', () => {
                     body.path = [body.pos];
                 }
             });
-            // 修正: 元コードの誤参照 (window.bodies) を修正して local bodies を参照
             if (targetBodies === bodies) {
                 this.timeElapsed += simParams.dt;
             }
@@ -163,16 +161,13 @@ window.addEventListener('DOMContentLoaded', () => {
         const rect = parent.getBoundingClientRect();
         const dpr = Math.max(1, window.devicePixelRatio || 1);
 
-        // Set canvas internal size to device pixels, but CSS size to layout pixels
         canvas.width = Math.max(1, Math.round(rect.width * dpr));
         canvas.height = Math.max(1, Math.round(rect.height * dpr));
         canvas.style.width = `${Math.round(rect.width)}px`;
         canvas.style.height = `${Math.round(rect.height)}px`;
 
-        // Set transform so drawing uses CSS pixel coordinates
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-        // offset uses CSS pixels
         offset = { x: rect.width / 2, y: rect.height / 2 };
     }
 
@@ -180,17 +175,14 @@ window.addEventListener('DOMContentLoaded', () => {
     function screenToWorld({ x, y }) { return { x: (x - offset.x) * scale, y: (y - offset.y) * scale }; }
 
     function draw() {
-        // clear using CSS pixels (canvas internal already scaled by setTransform)
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // view lock: center selected body
         if (simParams.isViewLocked && bodies[selectedBodyIndex]) {
             const selectedPos = worldToScreen(bodies[selectedBodyIndex].pos);
             offset.x += (canvas.clientWidth / 2 - selectedPos.x);
             offset.y += (canvas.clientHeight / 2 - selectedPos.y);
         }
 
-        // preview orbit (dashed)
         if (previewBody) {
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
@@ -206,7 +198,6 @@ window.addEventListener('DOMContentLoaded', () => {
             ctx.setLineDash([]);
         }
 
-        // bodies and trails
         bodies.forEach((body, index) => {
             if (simParams.trailsVisible && body.path.length > 1) {
                 ctx.beginPath();
@@ -232,7 +223,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // preview body marker (semi-transparent)
         if (previewBody) {
             const screenPos = worldToScreen(previewBody.pos);
             ctx.beginPath();
@@ -243,7 +233,6 @@ window.addEventListener('DOMContentLoaded', () => {
             ctx.globalAlpha = 1.0;
         }
 
-        // collision effects
         activeEffects.forEach(effect => effect.draw());
     }
 
@@ -308,35 +297,49 @@ window.addEventListener('DOMContentLoaded', () => {
         const unit = document.querySelector('input[name="massUnit"]:checked').value; const unitMap = { 'Earths': M_EARTH, 'Suns': M_SUN_ORIG, 'Moons': M_MOON };
         const m_new = parseFloat(document.getElementById('massSlider').value) * unitMap[unit];
         const periodVal = logslider(document.getElementById('periodSlider').value, 0.1, 20.0); const T = periodVal * YEAR;
+        // 半長軸 a (周回周期から)
         const a = Math.pow(G * (centerBody.mass + m_new) * T * T / (4 * Math.PI * Math.PI), 1 / 3.0);
         const eccentricity = parseFloat(document.getElementById('eccSlider').value);
+        // 真近点距離
         const r_p = a * (1 - eccentricity);
-        const v_p = Math.sqrt(G * (centerBody.mass + m_new) * (2 / r_p - 1 / a));
+        // 近点速度（汎用式 v^2 = GM (2/r - 1/a)）
+        const v_p = Math.sqrt(Math.max(0, G * (centerBody.mass + m_new) * (2 / r_p - 1 / a)));
 
-        let dirVec = centerBody.pos.sub(bodies[0].pos);
-        if (dirVec.norm() < 1e6) { dirVec = new Vector(1, 0); }
-        else { dirVec = dirVec.scale(1 / dirVec.norm()); }
+        // 軌道の向きを決める基準ベクトル（centerBody から太陽方向を向くベクトルを基準にする）
+        // もし centerBody が太陽（index 0）の場合は x 方向に置く
+        let dirVec = new Vector(1, 0);
+        if (bodies[0] && centerBody !== bodies[0]) {
+            dirVec = centerBody.pos.sub(bodies[0].pos);
+            const norm = dirVec.norm();
+            if (norm < 1e6) dirVec = new Vector(1, 0); else dirVec = dirVec.scale(1 / norm);
+        }
+        // perpVec は dirVec を 90° 回転させたもの（右手系）
         const perpVec = new Vector(-dirVec.y, dirVec.x);
-        const posOffset = dirVec.scale(r_p);
-        const velOffset = perpVec.scale(v_p);
-        const newPos = centerBody.pos.add(posOffset);
-        const newVel = centerBody.vel.add(velOffset);
+
+        // 新規天体を近点位置に置く（近点真位相 = 0 とする）
+        const newPos = centerBody.pos.add(dirVec.scale(r_p));
+        const newVel = centerBody.vel.add(perpVec.scale(v_p));
 
         const color = PLANET_COLORS[nextColorIndex % PLANET_COLORS.length];
         previewBody = new CelestialBody(`(preview)`, m_new, newPos, newVel, color);
 
-        if (!simParams.isRunning) {
-            let path = []; const numSteps = 200; const c = a * eccentricity; const b = a * Math.sqrt(1 - eccentricity * eccentricity);
-            for (let i = 0; i <= numSteps; i++) {
-                const angle = 2 * Math.PI * i / numSteps;
-                const ellipseX = a * Math.cos(angle) - c;
-                const ellipseY = b * Math.sin(angle);
-                const rotatedX = ellipseX * dirVec.x - ellipseY * perpVec.x;
-                const rotatedY = ellipseX * dirVec.y + ellipseY * perpVec.y;
-                path.push(new Vector(centerBody.pos.x + rotatedX, centerBody.pos.y + rotatedY));
-            }
-            previewBody.path = path;
+        // 軌道パスの作成：真楕円の真近点方程式（極座標 r(ν) = a(1 - e^2) / (1 + e cos ν)）を用いる
+        // これにより離心率 e=0 のとき確実に正円になる
+        const numSteps = 320;
+        const path = [];
+        for (let i = 0; i <= numSteps; i++) {
+            const nu = 2 * Math.PI * i / numSteps; // 真近点角（true anomaly）
+            const denom = (1 + eccentricity * Math.cos(nu));
+            // 防御的に denom が小さくならないように制御
+            const r = (denom === 0) ? a * (1 - eccentricity * eccentricity) / 1e-6 : a * (1 - eccentricity * eccentricity) / denom;
+            const x_local = r * Math.cos(nu);
+            const y_local = r * Math.sin(nu);
+            // 正しい基底変換： rotated = x_local * dirVec + y_local * perpVec
+            const rotatedX = x_local * dirVec.x + y_local * perpVec.x;
+            const rotatedY = x_local * dirVec.y + y_local * perpVec.y;
+            path.push(new Vector(centerBody.pos.x + rotatedX, centerBody.pos.y + rotatedY));
         }
+        previewBody.path = path;
     }
 
     // Utility: get distance between two pointer records
@@ -355,10 +358,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     function setupEventListeners() {
-        // Resize
         window.addEventListener('resize', () => { resizeCanvas(); });
 
-        // Pointer events (unified mouse/touch)
         canvas.addEventListener('pointerdown', (e) => {
             canvas.setPointerCapture(e.pointerId);
             pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
@@ -375,7 +376,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
         canvas.addEventListener('pointermove', (e) => {
             if (!pointers.has(e.pointerId)) return;
-            // update stored pointer
             pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
             if (pointers.size === 1 && isPanning) {
@@ -391,15 +391,12 @@ window.addEventListener('DOMContentLoaded', () => {
                 const rect = canvas.getBoundingClientRect();
                 const center = getPinchCenter();
 
-                // world position under center before scaling
                 const centerCanvas = { x: center.x - rect.left, y: center.y - rect.top };
                 const worldBefore = screenToWorld(centerCanvas);
 
-                // compute new scale: if pinch opens (newDist > lastPinchDist) -> zoom in -> scale decreases
                 const factor = lastPinchDist / newDist;
                 scale *= factor;
 
-                // adjust offset so that worldBefore maps to same screen center
                 offset.x = centerCanvas.x - worldBefore.x / scale;
                 offset.y = centerCanvas.y - worldBefore.y / scale;
 
@@ -418,7 +415,6 @@ window.addEventListener('DOMContentLoaded', () => {
                 const dx = e.clientX - pointerDownInfo.x;
                 const dy = e.clientY - pointerDownInfo.y;
                 const dist = Math.hypot(dx, dy);
-                // Tap detection: 短時間かつ小移動
                 if (dt < 350 && dist < 10 && !pointerDownInfo.moved) {
                     handleTap(e.clientX, e.clientY);
                 }
@@ -434,7 +430,6 @@ window.addEventListener('DOMContentLoaded', () => {
             pointerDownInfo = null;
         });
 
-        // Wheel zoom (desktop)
         canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             const rect = canvas.getBoundingClientRect();
@@ -442,13 +437,11 @@ window.addEventListener('DOMContentLoaded', () => {
             const worldBefore = screenToWorld(mousePos);
 
             const scaleFactor = e.deltaY > 0 ? 1.1 : 1 / 1.1;
-            // Want to keep worldBefore under cursor => new offset = mouse - worldBefore/scale_new
             scale *= scaleFactor;
             offset.x = mousePos.x - worldBefore.x / scale;
             offset.y = mousePos.y - worldBefore.y / scale;
         }, { passive: false });
 
-        // Tap / click fallback (for mouse)
         function handleTap(clientX, clientY) {
             const rect = canvas.getBoundingClientRect();
             const mouseX = clientX - rect.left;
@@ -467,7 +460,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Table selection listener
         document.querySelector('#starTable tbody').addEventListener('change', (e) => {
             if (e.target.name === 'starSelect' && e.target.dataset.index) {
                 const newIndex = parseInt(e.target.dataset.index);
@@ -475,11 +467,9 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Controls that update preview
         const controlsToUpdatePreview = ['massSlider', 'eccSlider', 'periodSlider'];
         controlsToUpdatePreview.forEach(id => { document.getElementById(id).addEventListener('input', updatePreview); });
 
-        // mass unit change
         document.querySelectorAll('input[name="massUnit"]').forEach(radio => {
             radio.addEventListener('change', (e) => {
                 document.getElementById('massUnitLabel').textContent = e.target.value;
@@ -487,7 +477,6 @@ window.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-        // other UI updates
         const periodSlider = document.getElementById('periodSlider');
         periodSlider.addEventListener('input', () => {
             document.getElementById('periodValue').textContent = logslider(periodSlider.value, 0.1, 20.0).toFixed(2);
@@ -503,7 +492,6 @@ window.addEventListener('DOMContentLoaded', () => {
             document.getElementById('speedValue').textContent = e.target.value;
         });
 
-        // Buttons
         document.getElementById('pauseButton').addEventListener('click', () => {
             simParams.isRunning = !simParams.isRunning;
             document.getElementById('pauseButton').textContent = simParams.isRunning ? 'Pause' : 'Play';
@@ -532,23 +520,8 @@ window.addEventListener('DOMContentLoaded', () => {
             bodies.push(newBody);
             updatePreview();
         });
-
-        // Mobile toolbar actions (buttons trigger the original actions)
-        document.getElementById('mobile-toolbar').addEventListener('click', (e) => {
-            const btn = e.target.closest('button[data-action]');
-            if (!btn) return;
-            const action = btn.dataset.action;
-            if (action === 'pause') document.getElementById('pauseButton').click();
-            if (action === 'add') document.getElementById('addPlanetButton').click();
-            if (action === 'lock') document.getElementById('lockViewButton').click();
-            if (action === 'trails') document.getElementById('trailsButton').click();
-        });
-
-        // Populate initial UI values
-        document.getElementById('periodValue').textContent = logslider(document.getElementById('periodSlider').value, 0.1, 20.0).toFixed(2);
-        document.getElementById('massValue').textContent = parseFloat(document.getElementById('massSlider').value).toFixed(1);
-        document.getElementById('eccValue').textContent = parseFloat(document.getElementById('eccSlider').value).toFixed(2);
     }
+
 
     init();
 });

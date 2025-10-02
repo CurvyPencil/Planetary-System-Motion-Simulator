@@ -5,8 +5,9 @@ body, html {
     font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
     background-color: #f0f0f0;
     color: #333;
-    height: 100vh;
+    height: 100%;
     box-sizing: border-box;
+    overflow-x: hidden;
 }
 
 /* Container: desktop = row, mobile = column */
@@ -45,7 +46,7 @@ body, html {
     height: 100%;
     display: block;
     background-color: #0a0a23;
-    touch-action: none; /* we'll handle gestures */
+    touch-action: none;
     -webkit-tap-highlight-color: transparent;
 }
 
@@ -120,29 +121,6 @@ button:hover { background-color: #4a54c4; }
 #starTable tbody tr.selected { background-color: #e8eaf6; }
 #starTable th:last-child, #starTable td:last-child { text-align: center; }
 
-/* Mobile toolbar */
-#mobile-toolbar {
-    position: fixed;
-    right: 14px;
-    bottom: 14px;
-    display: none; /* visible on small screens */
-    gap: 8px;
-    z-index: 1200;
-}
-#mobile-toolbar .mobile-btn {
-    width: 48px;
-    height: 48px;
-    border-radius: 12px;
-    background: rgba(0,0,0,0.65);
-    color: white;
-    border: none;
-    font-size: 1.2rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 6px 18px rgba(10,10,20,0.25);
-}
-
 /* Details summary styling - make it unobtrusive on desktop */
 .panel-details { border: none; padding: 0; margin: 0; }
 .panel-details .panel-summary { display: none; }
@@ -151,7 +129,8 @@ button:hover { background-color: #4a54c4; }
 @media (max-width: 900px) {
     .container {
         flex-direction: column;
-        padding: env(safe-area-inset-top) 10px calc(env(safe-area-inset-bottom) + 10px) 10px;
+        height: auto;       /* allow scroll */
+        min-height: 100vh;
     }
     #simulation-panel {
         order: 0;
@@ -175,7 +154,6 @@ button:hover { background-color: #4a54c4; }
     .panel-details .panel-content {
         padding-top: 6px;
     }
-    /* Collapse look: summary has small chevron */
     .panel-details[open] .panel-summary::after {
         content: "▲";
         float: right;
@@ -185,12 +163,8 @@ button:hover { background-color: #4a54c4; }
         float: right;
     }
 
-    /* Make controls more touch-friendly */
     button { padding: 12px; font-size: 1.05rem; border-radius: 8px; }
     .button-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-
-    /* Mobile toolbar visible */
-    #mobile-toolbar { display: flex; flex-direction: column; }
 
     /* Table -> card-style rows */
     #starTable thead { display: none; }
