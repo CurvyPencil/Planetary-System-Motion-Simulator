@@ -18,7 +18,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const PLANET_COLORS = ['#FF7F50', '#6A5ACD', '#00FA9A', '#FF69B4', '#1E90FF', '#FFD700', '#ADFF2F', '#F08080', '#BA55D3', '#7B68EE', '#3CB371', '#FFA07A'];
 
     // --- シミュレーション/UI設定 ---
-    const simParams = { dt: 1 * 60 * 60, stepsPerFrame: 6, collisionRadiusMultiplier: 50, isRunning: true, isViewLocked: false, trailsVisible: true, };
+    const simParams = { dt: 1 * 60 * 60, stepsPerFrame: 6, collisionRadiusMultiplier: 50, isRunning: true, isViewLocked: false, trailsVisible: true, previewVisible: true, };
 
     // --- DOM要素と状態変数 ---
     const canvas = document.getElementById('simulationCanvas');
@@ -183,7 +183,8 @@ window.addEventListener('DOMContentLoaded', () => {
             offset.y += (canvas.clientHeight / 2 - selectedPos.y);
         }
 
-        if (previewBody) {
+        // プレビュー軌道（ON/OFF）
+        if (previewBody && simParams.previewVisible) {
             ctx.beginPath();
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
             ctx.lineWidth = 1.5;
@@ -462,6 +463,14 @@ window.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
+
+        // プレビューON/OFF切替
+        document.getElementById('previewButton').addEventListener('click', () => {
+            simParams.previewVisible = !simParams.previewVisible;
+            document.getElementById('previewButton').textContent =
+                simParams.previewVisible ? 'Preview ON' : 'Preview OFF';
+        });
+        
 
         document.querySelector('#starTable tbody').addEventListener('change', (e) => {
             if (e.target.name === 'starSelect' && e.target.dataset.index) {
