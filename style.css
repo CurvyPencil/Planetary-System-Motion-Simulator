@@ -49,7 +49,7 @@ body, html {
     background-color: #0a0a23;
     display: block;
     -webkit-tap-highlight-color: transparent;
-    touch-action: none;   /* ←これを追加 */
+    touch-action: none;   
 }
 
 
