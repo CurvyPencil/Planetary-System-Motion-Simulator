@@ -10,7 +10,7 @@ body, html {
     overflow-x: hidden;
 }
 
-/* Container: desktop = row, mobile = column */
+/* Container: PCは横並び, モバイルは縦並び */
 .container {
     display: flex;
     flex-direction: row;
@@ -37,19 +37,21 @@ body, html {
     flex: 5;
     padding: 0;
     position: relative;
-    overflow: hidden;
-    min-height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
+/* Canvas wrapper - 正方形を維持 */
 #simulationCanvas {
     width: 100%;
-    height: 100%;
-    display: block;
+    aspect-ratio: 1 / 1;
     background-color: #0a0a23;
-    touch-action: none;
+    display: block;
     -webkit-tap-highlight-color: transparent;
 }
 
+/* 時間表示 */
 #time-display {
     position: absolute;
     top: 10px;
@@ -121,7 +123,7 @@ button:hover { background-color: #4a54c4; }
 #starTable tbody tr.selected { background-color: #e8eaf6; }
 #starTable th:last-child, #starTable td:last-child { text-align: center; }
 
-/* Details summary styling - make it unobtrusive on desktop */
+/* Details summary styling */
 .panel-details { border: none; padding: 0; margin: 0; }
 .panel-details .panel-summary { display: none; }
 
@@ -129,13 +131,18 @@ button:hover { background-color: #4a54c4; }
 @media (max-width: 900px) {
     .container {
         flex-direction: column;
-        height: auto;       /* allow scroll */
+        height: auto;
         min-height: 100vh;
     }
     #simulation-panel {
         order: 0;
-        height: 55vh;
-        min-height: 320px;
+        width: 100%;
+        justify-content: center;
+    }
+    #simulationCanvas {
+        width: 100%;
+        max-width: 100vw;
+        aspect-ratio: 1 / 1;
     }
     #controls-panel, #table-panel {
         order: 1;
@@ -143,7 +150,6 @@ button:hover { background-color: #4a54c4; }
         padding: 10px;
     }
 
-    /* Show details summary on mobile so the blocks are collapsible */
     .panel-details .panel-summary {
         display: block;
         cursor: pointer;
@@ -151,26 +157,8 @@ button:hover { background-color: #4a54c4; }
         font-size: 1rem;
         padding: 8px 0;
     }
-    .panel-details .panel-content {
-        padding-top: 6px;
-    }
-    .panel-details[open] .panel-summary::after {
-        content: "▲";
-        float: right;
-    }
-    .panel-details .panel-summary::after {
-        content: "▼";
-        float: right;
-    }
-
-    button { padding: 12px; font-size: 1.05rem; border-radius: 8px; }
-    .button-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-
-    /* Table -> card-style rows */
-    #starTable thead { display: none; }
-    #starTable tbody tr { display: block; border: 1px solid #eee; border-radius: 8px; margin-bottom: 8px; padding: 10px; background: #fff; }
-    #starTable tbody tr td { display: block; padding: 4px 2px; }
-    #starTable tbody tr td:last-child { text-align: right; }
+    .panel-details[open] .panel-summary::after { content: "▲"; float: right; }
+    .panel-details .panel-summary::after { content: "▼"; float: right; }
 }
 
 /* small polish */

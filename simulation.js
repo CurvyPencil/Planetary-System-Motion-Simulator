@@ -198,7 +198,10 @@ window.addEventListener('DOMContentLoaded', () => {
             ctx.setLineDash([]);
         }
 
-        bodies.forEach((body, index) => {
+        // === 質量の小さい順にソートしてから描画 ===
+        const sortedBodies = [...bodies].sort((a, b) => a.mass - b.mass);
+
+        sortedBodies.forEach((body, index) => {
             if (simParams.trailsVisible && body.path.length > 1) {
                 ctx.beginPath();
                 ctx.strokeStyle = 'rgba(200, 200, 200, 0.45)';
@@ -216,7 +219,7 @@ window.addEventListener('DOMContentLoaded', () => {
             ctx.arc(screenPos.x, screenPos.y, body.size / 2, 0, 2 * Math.PI);
             ctx.fillStyle = body.color;
             ctx.fill();
-            if (index === selectedBodyIndex) {
+            if (bodies.indexOf(body) === selectedBodyIndex) {
                 ctx.strokeStyle = 'red';
                 ctx.lineWidth = 2;
                 ctx.stroke();
