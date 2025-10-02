@@ -123,7 +123,6 @@ button:hover {
     background-color: #e8eaf6;
 }
 
-/* ★変更点: 最後の列(Select)のスタイルを調整 */
 #starTable th:last-child,
 #starTable td:last-child {
     text-align: center;
